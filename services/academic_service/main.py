@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
+from uuid import UUID
 from . import models, schemas, database
 
 # Create Tables
@@ -36,18 +37,24 @@ def list_courses(db: Session = Depends(get_db)):
 # --- STUDENT API ---
 @app.post('/students', response_model=schemas.StudentProfileOut)
 def create_student_profile(student: schemas.StudentProfileCreate, db: Session = Depends(get_db)):
-    # Check if Roll Number exists
     if db.query(models.StudentProfile).filter(models.StudentProfile.roll_number == student.roll_number).first():
         raise HTTPException(status_code=400, detail='Roll Number already registered')
-    
-    new_profile = models.StudentProfile(
-        user_id=student.user_id,
-        roll_number=student.roll_number,
-        address=student.address,
-        course_id=student.course_id
-    )
+    new_profile = models.StudentProfile(user_id=student.user_id, roll_number=student.roll_number, address=student.address, course_id=student.course_id)
     db.add(new_profile)
     db.commit()
     db.refresh(new_profile)
     return new_profile
+
+# --- ATTENDANCE API ---
+@app.post('/attendance', response_model=schemas.AttendanceOut)
+def mark_attendance(attendance: schemas.AttendanceCreate, db: Session = Depends(get_db)):
+    new_record = models.Attendance(student_id=attendance.student_id, course_id=attendance.course_id, status=attendance.status)
+    db.add(new_record)
+    db.commit()
+    db.refresh(new_record)
+    return new_record
+
+@app.get('/attendance/{student_id}', response_model=List[schemas.AttendanceOut])
+def get_student_attendance(student_id: UUID, db: Session = Depends(get_db)):
+    return db.query(models.Attendance).filter(models.Attendance.student_id == student_id).all()
 

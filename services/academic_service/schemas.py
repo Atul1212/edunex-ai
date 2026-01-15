@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from uuid import UUID
-from typing import Optional
+from typing import Optional, List
+from datetime import date
 
 # --- Course Schemas ---
 class CourseCreate(BaseModel):
@@ -14,7 +15,7 @@ class CourseOut(BaseModel):
     class Config:
         from_attributes = True
 
-# --- Student Profile Schemas ---
+# --- Student Schemas ---
 class StudentProfileCreate(BaseModel):
     user_id: UUID
     roll_number: str
@@ -26,6 +27,20 @@ class StudentProfileOut(BaseModel):
     user_id: UUID
     roll_number: str
     course_id: Optional[UUID]
+    class Config:
+        from_attributes = True
+
+# --- NEW: Attendance Schemas ---
+class AttendanceCreate(BaseModel):
+    student_id: UUID
+    course_id: UUID
+    status: str # PRESENT/ABSENT
+
+class AttendanceOut(BaseModel):
+    id: UUID
+    student_id: UUID
+    date: date
+    status: str
     class Config:
         from_attributes = True
 
