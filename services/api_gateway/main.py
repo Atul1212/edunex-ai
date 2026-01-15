@@ -15,14 +15,14 @@ def health_check():
 @app.api_route('/auth/{path:path}', methods=['GET', 'POST', 'PUT', 'DELETE'])
 async def auth_proxy(path: str, request: Request):
     async with httpx.AsyncClient() as client:
-        # Forward the request to Auth Service
         target_url = f'{AUTH_SERVICE_URL}/{path}'
+        body = await request.body()
         try:
             response = await client.request(
                 method=request.method,
                 url=target_url,
-                headers=request.headers.raw,
-                json=await request.json() if await request.body() else None
+                headers=request.headers,
+                content=body  # Fix: Forward Raw Content (Form or JSON)
             )
             return response.json()
         except httpx.RequestError:
@@ -32,14 +32,14 @@ async def auth_proxy(path: str, request: Request):
 @app.api_route('/academic/{path:path}', methods=['GET', 'POST', 'PUT', 'DELETE'])
 async def academic_proxy(path: str, request: Request):
     async with httpx.AsyncClient() as client:
-        # Forward the request to Academic Service
         target_url = f'{ACADEMIC_SERVICE_URL}/{path}'
+        body = await request.body()
         try:
             response = await client.request(
                 method=request.method,
                 url=target_url,
-                headers=request.headers.raw,
-                json=await request.json() if await request.body() else None
+                headers=request.headers,
+                content=body
             )
             return response.json()
         except httpx.RequestError:
