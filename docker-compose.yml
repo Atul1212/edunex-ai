@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  # Primary Database Service
+  db:
+    image: postgres:16-alpine
+    container_name: edunex_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: edunex_master
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Caching & Message Queue Service
+  redis:
+    image: redis:7-alpine
+    container_name: edunex_redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
