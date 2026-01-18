@@ -1,26 +1,129 @@
 version: '3.8'
 
 services:
-  # Primary Database Service
+  # --- DATABASE (Port Changed to 5435 to avoid conflict) ---
   db:
-    image: postgres:16-alpine
-    container_name: edunex_db
+    image: postgres:16
     restart: always
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: edunex_master
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: edunex
     ports:
-      - "5432:5432"
+      - '5435:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Caching & Message Queue Service
-  redis:
-    image: redis:7-alpine
-    container_name: edunex_redis
+  # --- AUTH SERVICE ---
+  auth_service:
+    build: .
+    restart: always
+    command: python -m uvicorn services.auth_service.main:app --host 0.0.0.0 --port 8001
     ports:
-      - "6379:6379"
+      - '8001:8001'
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/edunex
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # --- ACADEMIC SERVICE ---
+  academic_service:
+    build: .
+    restart: always
+    command: python -m uvicorn services.academic_service.main:app --host 0.0.0.0 --port 8002
+    ports:
+      - '8002:8002'
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/edunex
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # --- FINANCE SERVICE ---
+  finance_service:
+    build: .
+    restart: always
+    command: python -m uvicorn services.finance_service.main:app --host 0.0.0.0 --port 8003
+    ports:
+      - '8003:8003'
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/edunex
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # --- EXAM SERVICE ---
+  exam_service:
+    build: .
+    restart: always
+    command: python -m uvicorn services.exam_service.main:app --host 0.0.0.0 --port 8004
+    ports:
+      - '8004:8004'
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/edunex
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # --- COMMUNICATION SERVICE ---
+  communication_service:
+    build: .
+    restart: always
+    command: python -m uvicorn services.communication_service.main:app --host 0.0.0.0 --port 8005
+    ports:
+      - '8005:8005'
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/edunex
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # --- API GATEWAY ---
+  api_gateway:
+    build: .
+    restart: always
+    command: python -m uvicorn services.api_gateway.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - '8000:8000'
+    environment:
+      - AUTH_SERVICE_URL=http://auth_service:8001
+      - ACADEMIC_SERVICE_URL=http://academic_service:8002
+      - FINANCE_SERVICE_URL=http://finance_service:8003
+      - EXAM_SERVICE_URL=http://exam_service:8004
+      - COMM_SERVICE_URL=http://communication_service:8005
+      - AI_SERVICE_URL=http://ai_engine:8006
+    depends_on:
+      - auth_service
+      - academic_service
+      - ai_engine
+  # --- AI ENGINE (NEW) ---
+  ai_engine:
+    build: .
+    restart: always
+    command: python -m uvicorn services.ai_engine.main:app --host 0.0.0.0 --port 8006
+    ports:
+      - '8006:8006'
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}  # <--- Paste Key Here
+
+  # --- FRONTEND ---
+  frontend:
+    build: .
+    restart: always
+    command: streamlit run services/frontend/app.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - '8501:8501'
+    environment:
+      - API_GATEWAY_URL=http://api_gateway:8000
+    depends_on:
+      - api_gateway
 
 volumes:
   postgres_data:
+
